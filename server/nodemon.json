@@ -1,6 +1,8 @@
 {
-  "watch": ["src"],
+  "watch": [
+    "src"
+  ],
   "ext": ".ts,.js",
   "ignore": [],
-  "exec": "tsx ./src/rest-api.ts"
+  "exec": "tsx ./src/main.ts"
 }
