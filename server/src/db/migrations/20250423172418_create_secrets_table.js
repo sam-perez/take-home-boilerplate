@@ -7,10 +7,9 @@ exports.up = function (knex) {
     .createTable("secrets", (table) => {
       table.uuid("id").primary();
       table.text("password");
-      table.date("expiration_date");
+      table.timestamp("expires_at");
       table.string("share_id", 8).unique().notNullable();
       table.timestamp("created_at").defaultTo(knex.fn.now());
-      table.timestamp("updated_at").defaultTo(knex.fn.now());
     })
     .then(() => {
       return knex.schema.createTable("secret_fragments", (table) => {
@@ -22,6 +21,7 @@ exports.up = function (knex) {
           .onDelete("CASCADE");
         table.integer("fragment_order").notNullable();
         table.text("fragment_text").notNullable();
+        table.timestamp("created_at").defaultTo(knex.fn.now());
       });
     });
 };

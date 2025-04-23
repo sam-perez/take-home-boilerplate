@@ -11,9 +11,9 @@ export type Secret = {
    */
   password: string | null;
   /**
-   * The optional expiration date of the secret.
+   * The optional expiration date of the secret. Can no longer be accessed after this date.
    */
-  expiration_date: Date | null;
+  expires_at: Date | null;
   /**
    * The unique share ID for accessing the secret.
    */
@@ -22,10 +22,6 @@ export type Secret = {
    * The timestamp when the secret was created.
    */
   created_at: Date;
-  /**
-   * The timestamp when the secret was last updated.
-   */
-  updated_at: Date;
 };
 
 /**
@@ -48,4 +44,8 @@ export type SecretFragment = {
    * The encrypted text of the secret fragment.
    */
   fragment_text: string;
+  /**
+   * The timestamp when the secret fragment was created.
+   */
+  created_at: Date;
 };

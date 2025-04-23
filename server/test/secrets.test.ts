@@ -6,6 +6,9 @@ import { makeApp } from "../src/rest-api";
 import { Knex, knex } from "knex";
 import path from "path";
 
+// For now, we're not worried about unsafe member access in tests as we do it to extract from the response body
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+
 // only 'infisical' is guaranteed to exist in the test db
 const DEFAULT_DB_NAME = "infisical";
 
@@ -57,7 +60,7 @@ describe("Secrets API", () => {
   });
 
   afterAll(async () => {
-    await server.close();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
     console.log("Server closed");
 
     // close the db connection to the test db
@@ -128,13 +131,13 @@ describe("Secrets API", () => {
 
     const getWithBadPasswordResponse = await request(app)
       .get(`/api/secrets/${response.body.share_id}`)
-      .send({ password: "wrongpassword" });
+      .query({ password: "wrongpassword" });
 
     expect(getWithBadPasswordResponse.status).toBe(401);
 
     const getWithPasswordResponse = await request(app)
       .get(`/api/secrets/${response.body.share_id}`)
-      .send({ password: "testpassword" });
+      .query({ password: "testpassword" });
 
     expect(getWithPasswordResponse.status).toBe(200);
     expect(getWithPasswordResponse.body.secret_text).toBe("test secret");
@@ -157,12 +160,14 @@ describe("Secrets API", () => {
     expect(getResponse.body.secret_text).toBe(largeSecret);
 
     const secret = await db("secrets").where({
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       share_id: response.body.share_id,
     });
 
     expect(secret.length).toBe(1);
 
     const fragments = await db("secret_fragments")
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       .where({ secret_id: secret[0].id })
       .orderBy("fragment_order");
 
@@ -189,9 +194,10 @@ describe("Secrets API", () => {
 
     // modify the expiration date to be in the past
     await db("secrets")
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       .where({ share_id: response.body.share_id })
       // warning: this is a hacky way to set the expiration date, but it works
-      .update({ expiration_date: new Date(Date.now() - 1_000_000) });
+      .update({ expires_at: new Date(Date.now() - 1_000_000) });
 
     const getResponse = await request(app).get(
       `/api/secrets/${response.body.share_id}`

@@ -21,6 +21,6 @@
       "@app/*": ["./src/*"]
     }
   },
-  "include": ["src/**/*", "scripts/**/*", "e2e-test/**/*", "./.eslintrc.js", "./tsup.config.js"],
+  "include": ["src/**/*", "scripts/**/*", "e2e-test/**/*", "./.eslintrc.js", "./tsup.config.js", "test/**/*"],
   "exclude": ["node_modules"]
 }

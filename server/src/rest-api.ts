@@ -1,8 +1,5 @@
-import dotenv from "dotenv";
 import express from "express";
 import cors from "cors";
-dotenv.config();
-
 import { Knex } from "knex";
 import { v4 as uuidv4 } from "uuid";
 import { Secret, SecretFragment } from "./db/models";
@@ -15,6 +12,7 @@ import {
   getSymmetricEncryptionKey,
 } from "./util/secret-utils";
 
+/** Make the Express app with the given database connection. */
 const makeApp = (db: Knex) => {
   const app = express();
 
@@ -23,9 +21,13 @@ const makeApp = (db: Knex) => {
   app.use(express.json());
 
   // Endpoint to create a new secret
-  // @ts-ignore Unclear why we're getting this error, not important for now
+  // @ts-expect-error Unclear why we're getting this error, not important for now
   app.post("/api/secrets", async (req, res) => {
-    const { secret_text, expiration_days, password } = req.body;
+    const { secret_text, expiration_days, password } = req.body as {
+      secret_text?: string;
+      expiration_days?: number;
+      password?: string;
+    };
 
     if (typeof secret_text !== "string") {
       return res.status(400).json({ error: "Secret text must be a string" });
@@ -77,7 +79,7 @@ const makeApp = (db: Knex) => {
       }
     }
 
-    const expiration_date =
+    const expiresAt =
       parsedExpirationDays !== undefined
         ? new Date(Date.now() + parsedExpirationDays * 24 * 60 * 60 * 1000)
         : null;
@@ -102,7 +104,7 @@ const makeApp = (db: Knex) => {
         await trx("secrets").insert({
           id: secretId,
           password: hashedPassword,
-          expiration_date: expiration_date,
+          expires_at: expiresAt,
           share_id: share_id,
         });
 
@@ -127,10 +129,10 @@ const makeApp = (db: Knex) => {
   });
 
   // Endpoint to retrieve a secret by share_id
-  // @ts-ignore Unclear why we're getting this error, not important for now
+  // @ts-expect-error Unclear why we're getting this error, not important for now
   app.get("/api/secrets/:share_id", async (req, res) => {
     const { share_id } = req.params;
-    const { password } = req.body;
+    const { password } = req.query;
 
     if (!share_id || typeof share_id !== "string" || share_id.length !== 8) {
       return res.status(400).json({ error: "Invalid share ID" });
@@ -149,11 +151,20 @@ const makeApp = (db: Knex) => {
     const encryptionKey = getSymmetricEncryptionKey();
 
     try {
-      const secret: Secret = await db("secrets").where({ share_id }).first();
+      const secret = (await db("secrets")
+        .where({ share_id })
+        .first()) as Secret;
 
       if (!secret) {
         // Return a 404 Not Found status if the secret does not exist.
         return res.status(404).json({ error: "Secret not found" });
+      }
+
+      if (secret.expires_at && secret.expires_at < new Date()) {
+        // Return a 410 Gone status if the secret has expired.
+        // This is a more appropriate status code for expired resources.
+        // TODO: should we delete the secret from the database?
+        return res.status(410).json({ error: "Secret has expired" });
       }
 
       if (secret.password !== null && parsedPassword !== undefined) {
@@ -173,16 +184,9 @@ const makeApp = (db: Knex) => {
         return res.status(401).json({ error: "Password required" });
       }
 
-      if (secret.expiration_date && secret.expiration_date < new Date()) {
-        // Return a 410 Gone status if the secret has expired.
-        // This is a more appropriate status code for expired resources.
-        // TODO: should we delete the secret from the database?
-        return res.status(410).json({ error: "Secret has expired" });
-      }
-
-      const fragments: SecretFragment[] = await db("secret_fragments")
+      const fragments = (await db("secret_fragments")
         .where({ secret_id: secret.id })
-        .orderBy("fragment_order", "asc");
+        .orderBy("fragment_order", "asc")) as SecretFragment[];
 
       const decryptedSecret = fragments
         .map((fragment) =>
